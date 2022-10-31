@@ -51,9 +51,9 @@ parser.add_argument('--reinforce-discount', default=0.99, type=float, help='Disc
 parser.add_argument('--use-cob', default=False, type=ast.literal_eval, help='Use change of basis for representaitons in gvae')
 parser.add_argument('--entropy-weight', default=0.01, type=float, help='Entropy weight for RL exploration')
 parser.add_argument('--noise-name', default=None, choices=['BG', 'Salt', 'Gaussian'])
-
 args = parser.parse_args()
-    
+
+
 if __name__ == '__main__':
     from models.utils import ContextTimer
     with ContextTimer('Run'):

@@ -69,12 +69,12 @@ def forward_vae_ds(args):
     images_path = os.path.join(args.data_path, 'inputs.npy')
     actions_path = os.path.join(args.data_path, 'actions.npy')
     ds = ForwardVAEDS(images_path, actions_path, transforms=train_transform, output_targets=output_targets,
-                      mean_channels=mean_channels, num_steps=args.offset, noise_name=args.noise_name)                
-    return traind, val
+                      mean_channels=mean_channels, num_steps=args.offset, noise_name=args.noise_name)
+    return ds
 
 
 _default_paths = {
-    'flatland': '/home/matt/PycharmProjects/PyTorchCode/NeurIPS19-SBDRL/code/learn_4_dim_linear_disentangled_representation/flatland/flat_game',
+    'flatland': '/mmfs1/home/qyangw/disentangled_rep/datasets',
     'dsprites': '',
 }
 

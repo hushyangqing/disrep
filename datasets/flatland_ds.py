@@ -23,17 +23,6 @@ class ForwardVAEDS(Dataset):
         self.inputs = np.load(path_input).reshape(-1, 64, 64, 3).transpose((0, 3, 1, 2))
         self.actions = np.load(path_action)
         self.actions = np.array(self.actions).reshape(-1, 1)
-        '''
-        length = len(self.inputs)
-        if mode == 'train':
-            self.len = int(length * (1-ratio))
-            self.inputs = self.inputs[0:self.len]
-            self.actions = self.actions[0:self.len]
-        else:
-            self.len = length - int(length * (1-ratio))
-            self.inputs = self.inputs[int(length * (1-ratio)):]
-            self.actions = self.actions[int(length * (1-ratio)):]
-        '''
         self.transforms = transforms
         self.output_targets = output_targets
         self.mean_channels = mean_channels
@@ -46,8 +35,6 @@ class ForwardVAEDS(Dataset):
 
         self.possible_latents = np.arange(17, 49)
         self.latents_sizes = (len(self.possible_latents), len(self.possible_latents))
-
-
 
     def __getitem__(self, index):
         input_batch = self.inputs[index]

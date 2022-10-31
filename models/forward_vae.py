@@ -249,11 +249,13 @@ class ForwardVAE(nn.Module):
         loss_total = vae_loss + loss_predict_next_z
         self.anneal = self.anneal * self.anneal_eps
 
+        '''
         if batch_nb == 0:
             try:
                 self.generate_reconstructed_data()
             except:
                 warnings.warn('Failed to generate reconstructed data')
+        '''
 
         state.update(loss_out)
         tensorboard_logs = {'metric/recon_loss': loss_recon,
@@ -385,7 +387,7 @@ class ForwardVAE(nn.Module):
         return torch.tensor(dets), torch.tensor(dets).mean(), torch.tensor(angle_mean), torch.tensor(
             angle_std), torch.tensor(mangles)
 
-    def generate_reconstructed_data(self):
+    def generate_reconstructed_data(self, epoch):
         """ Should work """
         z = torch.tensor([1., 1., 1., 1.]).cuda()
         # im = self.forward(z, action=None, target_batch=z, decode=True).sigmoid().detach().cpu().numpy().reshape(-1, 3, 64, 64).transpose((0, 2, 3, 1))
@@ -395,9 +397,9 @@ class ForwardVAE(nn.Module):
             z = torch.tensor([1., 1., 1., 1.]).cuda()
             for i, action in enumerate(torch.Tensor(np.ones(15)) + ac):
                 im = self.forward(z.cuda(), action=None, target_batch=z.cuda(),
-                                  decode=True).sigmoid().detach().cpu().numpy().reshape(-1, 1, 64, 64).transpose(
+                                  decode=True).sigmoid().repeat(1, 3, 1, 1).detach().cpu().numpy().reshape(-1, 3, 64, 64).transpose(
                     (0, 2, 3, 1))
-                im = im.reshape(64, 64)
+                im = im.reshape(64, 64, 3)
                 aux.append(im)
                 action = action.long().cuda()
                 next_z = self.next_rep(z.unsqueeze(0), action.view(1, 1), cuda=True)
@@ -408,7 +410,7 @@ class ForwardVAE(nn.Module):
         import matplotlib.pyplot as plt
         plt.close()
         fig, ax = plt.subplots(nrows=4, ncols=15, figsize=(15, 4))
-        # fig.subplots_adjust(left=0.125, right=0.9, bottom=0.25, top=0.75, wspace=0.1, hspace=0.1)
+        fig.subplots_adjust(left=0.125, right=0.9, bottom=0.25, top=0.75, wspace=0.1, hspace=0.1)
         for k, i in enumerate(ax):
             for j, axis in enumerate(i):
                 axis.axis('off')
@@ -417,7 +419,7 @@ class ForwardVAE(nn.Module):
                 axis.set_yticklabels([])
                 # axis.set_aspect(1)
         plt.tight_layout()
-        plt.savefig('./images/reconstruction_again.png')
+        plt.savefig('./images/reconstruction_'+ str(epoch) +'.png')
         return
 
     def linear_interpolation(self, image_origin, image_destination, number_frames):

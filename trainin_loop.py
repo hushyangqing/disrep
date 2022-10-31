@@ -24,6 +24,8 @@ def train(args, epochs, trainloader, valloader, model, optimiser, loss_fn, logge
             pb.set_postfix_str('ver:{}, loss:{:.3f}, val_loss:{:.3f}, lr:{}'.format(logger.get_version(), loss.item(), val_loss.item(), pgs))
             global_step += 1
 
+        model.generate_reconstructed_data(i)
+
         log_list = []
         with torch.no_grad():
             for t, data in enumerate(valloader):

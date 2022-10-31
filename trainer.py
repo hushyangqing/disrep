@@ -2,7 +2,7 @@ import gc
 import os
 
 import torch
-import random 
+import random
 import numpy as np
 
 from datasets.datasets import datasets, set_to_loader, dataset_meta
@@ -29,7 +29,9 @@ def seed_torch(seed=0):
     # torch.backends.cudnn.enabled = False
 
 def run(args):
-    seed_torch(1)
+
+    seed_torch(0)
+
     if args.evaluate or args.load_model:
         checkpoint_path = os.path.join(args.log_path, 'checkpoints')
         model_state, old_args = model_loader(checkpoint_path)
@@ -85,7 +87,7 @@ def run(args):
         out = {}
 
     if args.evaluate or args.end_metrics:
-        log_list = MetricAggregator(trainds, valds, 1000, model, paired, args.latents, ntrue_actions=args.latents, final=True)()
+        log_list = MetricAggregator(trainds.dataset, valds.dataset, 1000, model, paired, args.latents, ntrue_actions=args.latents, final=True)()
         mean_logs = mean_log_list([log_list, ])
         logger.write_dict(mean_logs, model.global_step+1) if logger is not None else None
 

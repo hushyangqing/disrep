@@ -72,8 +72,6 @@ class NdRep(nn.Module):
         eye = torch.eye(self.repsize[0], device=ac.device)
         angle = self.angles
         eye[0:self.dim, 0:self.dim] = angle
-        import pdb 
-        pdb.set_trace()
         return eye
 
     def forward(self, x, ac):
