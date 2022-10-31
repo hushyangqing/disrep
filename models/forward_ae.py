@@ -1,21 +1,10 @@
-"""
-Code adapted from https://github.com/Caselles/NeurIPS19-SBDRL
-
-There is also a more general implementation in /models/group_vae: ForwardGroupVAE which uses the same framework
-we use for RGrVAE and allows any number of latents and group structures.
-"""
-
 import torch.nn.functional as F
 from torch import nn
-import random
-import scipy.linalg
-from scipy.stats import special_ortho_group, ortho_group
 
 from logger.imaging import *
 from models.utils import ParallelActions
-from models.vae import VAE
 
-
+# cover the linear38 in main_loop if the model is forward_ae
 def weight_hook(up):
     def hook_fn(grad):
         new_grad = grad.clone()
@@ -53,7 +42,6 @@ class GroupWrapper:
         tb_str = '\n\n\n\n'.join([r for r in reprs])
         writer.add_text('matrices', tb_str, current_epoch)
 
-
 class ForwardEncoder(nn.Module):
     def __init__(self, Z_DIM, complexity=1, nc=1):
         super().__init__()
@@ -69,7 +57,7 @@ class ForwardEncoder(nn.Module):
 
         self.fc1 = nn.Linear(512, 256)
         self.fc2 = nn.Linear(256, 256)
-        self.fc3 = nn.Linear(256, 2 * Z_DIM)
+        self.fc3 = nn.Linear(256, Z_DIM)
 
         # torch.nn.init.zeros_(self.fc3.weight)
         # torch.nn.init.ones_(self.fc3.bias)
@@ -90,7 +78,7 @@ class ForwardLinearEncoder(nn.Module):
         super().__init__()
         self.nc = nc
         self.fc1 = nn.Linear(64*64, 256)
-        self.fc2 = nn.Linear(256, 2*Z_DIM)
+        self.fc2 = nn.Linear(256, Z_DIM)
     
     def forward(self, x):
         if self.nc==3:
@@ -145,11 +133,10 @@ class ForwardLinearDecoder(nn.Module):
             h = h.repeat(1, 3, 1, 1)
         return h
 
-class ForwardVAE(nn.Module):
-    def __init__(self, arch = 'conv', rotation='None', angle=False, Z_DIM=4, beta=1, pred_z_loss_type='latent', max_capacity=None, capacity_leadin=None, nc=1):
-        super(ForwardVAE, self).__init__()
+class ForwardAE(nn.Module):
+    def __init__(self, arch = 'conv', angle=False, Z_DIM=4, beta=1, pred_z_loss_type='latent', max_capacity=None, capacity_leadin=None, nc=1):
+        super(ForwardAE, self).__init__()
         self.arch = arch
-        self.rotation = rotation
         self.angle = angle
         self.Z_DIM = Z_DIM
         self.beta = beta
@@ -215,15 +202,6 @@ class ForwardVAE(nn.Module):
 
     def encode(self, x):
         return self.encoder(x)
-
-    def unwrap(self, x):
-        return torch.split(x, x.shape[1] // 2, dim=1)
-
-    def reparameterize(self, mu_and_logvar):
-        mu, logvar = self.unwrap(mu_and_logvar)
-        std = torch.exp(logvar)
-        eps = torch.randn_like(std)
-        return eps * std + mu
 
     def decode(self, z):
         return self.decoder(z)
@@ -306,65 +284,23 @@ class ForwardVAE(nn.Module):
     def divergence_loss(self, logvar, mu):
         return -0.5 * torch.mean((1 + logvar - mu.pow(2) - logvar.exp()))
 
-    def MMD(self, x, y, kernel):
-        xx, yy, zz = torch.mm(x, x.t()), torch.mm(y, y.t()), torch.mm(x, y.t())
-        rx = (xx.diag().unsqueeze(0).expand_as(xx))
-        ry = (yy.diag().unsqueeze(0).expand_as(yy))
-        
-        dxx = rx.t() + rx - 2. * xx # Used for A in (1)
-        dyy = ry.t() + ry - 2. * yy # Used for B in (1)
-        dxy = rx.t() + ry - 2. * zz # Used for C in (1)
-        
-        XX, YY, XY = (torch.zeros(xx.shape).cuda(),
-                    torch.zeros(xx.shape).cuda(),
-                    torch.zeros(xx.shape).cuda())
-                    
-        if kernel == "multiscale":
-            bandwidth_range = [0.2, 0.5, 0.9, 1.3]
-            for a in bandwidth_range:
-                XX += a**2 * (a**2 + dxx)**-1
-                YY += a**2 * (a**2 + dyy)**-1
-                XY += a**2 * (a**2 + dxy)**-1
-        if kernel == "rbf":
-            bandwidth_range = [10, 15, 20, 50]
-            for a in bandwidth_range:
-                XX += torch.exp(-0.5*dxx/a)
-                YY += torch.exp(-0.5*dyy/a)
-                XY += torch.exp(-0.5*dxy/a)
-        return torch.mean(XX + YY - 2. * XY)
-
     def main_step(self, batch, batch_nb, loss_fn):
 
         (frames, actions), target_batch = batch
 
-        (recon_x, mu_and_logvar, z_plus_1, z, targets), state = self.forward(frames, actions, target_batch)
-
-        mu, logvar = self.unwrap(mu_and_logvar)
+        (recon_x, z_plus_1, z, targets), state = self.forward(frames, actions, target_batch)
 
         # loss_recon = loss_fn(recon_x, frames).mean()
         loss_recon = self.vae_recon_loss(recon_x, frames)
-        if self.rotation == 'None':
-            kld = self.divergence_loss(logvar, mu)
-        elif self.rotation == 'rotation_invariant':
-            size=10
-            R = torch.randn([size,4]).cuda()
-            dist = 0.0
-            for i in range(size):
-                dist += self.MMD(z,z*R[i], 'rbf')
-            kld = torch.tensor(dist/size).cuda()
-        elif self.rotation == 'random':
-            size=10
-            dist = 0.0
-            for i in range(size):
-                #r = ortho_group.rvs(4)
-                r = torch.rand(4, 4)
-                r = r / np.power(np.fabs(scipy.linalg.det(r)), 0.25)
-                #r = special_ortho_group.rvs(4)
-                r = torch.tensor(r, dtype=torch.float).cuda()
-                dist += self.MMD(z, torch.mm(z,r), 'rbf')
-            kld = torch.tensor(dist/size).cuda()
 
-        vae_loss = (16 * loss_recon) + (self.anneal * kld * self.control_capacity(kld, self.global_step))
+        var = torch.mean(torch.bmm(z.reshape(-1, self.Z_DIM, 1), z.reshape(-1, 1, self.Z_DIM)), dim=0)
+        l1 = F.mse_loss(var, torch.eye(self.Z_DIM).cuda())
+
+        mean = torch.mean(z, dim=0)
+        l2 = F.mse_loss(mean, torch.zeros(self.Z_DIM).cuda())
+        
+        loss_normal = 2 *l1 + l2
+        vae_loss = (16 * loss_recon) + (self.anneal * loss_normal * self.control_capacity(loss_normal, self.global_step))
 
         state.update({
             'pred': z_plus_1, 'z2': z_plus_1, 'x2_hat': self.decode(z_plus_1),
@@ -388,7 +324,6 @@ class ForwardVAE(nn.Module):
 
         state.update(loss_out)
         tensorboard_logs = {'metric/recon_loss': loss_recon,
-                            'metric/total_kl': -0.5 * torch.mean((1 + logvar - mu.pow(2) - logvar.exp()).sum(-1)),
                             'forward/predict': loss_predict_next_z,
                             'metric/loss': loss_total,
                             'forward/anneal': torch.tensor(self.anneal).float(),
@@ -424,19 +359,12 @@ class ForwardVAE(nn.Module):
         ]
         return cbs
 
-    def rep_fn(self, batch):
-        (frames, actions), target_batch = batch
-        (recon_x, mu_and_logvar, z_plus_1, z, targets), state = self.forward(frames, actions, target_batch)
-        return self.unwrap(mu_and_logvar)[0]
-
     def forward(self, x, action, target_batch, encode=False, mean=False, decode=False):
 
         if decode:
             return self.decode(x)
-        mu_and_logvar = self.encode(x)
-        mut_and_logvart = self.encode(target_batch)
-        mut = self.unwrap(mut_and_logvart)[0]
-        z = self.reparameterize(mu_and_logvar)
+        z = self.encode(x)
+        mut= self.encode(target_batch)
 
         input_state = {
             'z': z, 'action': action, 'x': x, 'target': target_batch, 'mut': mut, 'x2': target_batch,
@@ -444,20 +372,17 @@ class ForwardVAE(nn.Module):
         }
         z_plus_1, state_stats = self.predict_next_z(input_state)
 
-        mu, lv = self.unwrap(mu_and_logvar)
         if encode:
-            if mean:
-                return mu
             return z, z_plus_1
 
         x_hat = self.decode(z)
         recon = x_hat
         true_recon = self.decode(mut)
 
-        state = {'x': x, 'y': x, 'x_hat': x_hat, 'recon': recon, 'mu': mu, 'lv': lv, 'mut': mut,
+        state = {'x': x, 'y': x, 'x_hat': x_hat, 'recon': recon, 'mut': mut,
                  'x1': x, 'x2': target_batch, 'recon_hat': self.decode(z_plus_1), 'true_recon': true_recon}
         state.update(state_stats)
-        return (x_hat, mu_and_logvar, z_plus_1, z, mut), state
+        return (x_hat, z_plus_1, z, mut), state
 
     def latent_level_loss(self, state, mean=False):
         z2, mu2 = state['z2'], state['mut']
@@ -547,7 +472,7 @@ class ForwardVAE(nn.Module):
                 axis.set_yticklabels([])
                 # axis.set_aspect(1)
         plt.tight_layout()
-        plt.savefig('./images/reconstruction_'+ str(epoch) +'.png')
+        plt.savefig('./images_ae/reconstruction_'+ str(epoch) +'.png')
         return
 
     def linear_interpolation(self, image_origin, image_destination, number_frames):
@@ -570,23 +495,7 @@ class ForwardVAE(nn.Module):
         return np.array(res)
 
 
-class BetaForward(VAE):
-    def __init__(self, args):
-        complexity = 1
-        try:
-            if args.noise_name == 'BG':
-                complexity = 3
-            if args.noise_name in ['Salt', 'Gaussian']:
-                complexity = 2
-        except:
-            warnings.warn('Could not find the noise type')
-
-        super().__init__(ForwardEncoder(args.latents, complexity, nc=args.nc), ForwardDecoder(args.latents, complexity, nc=args.nc), args.beta, args.capacity, args.capacity_leadin)
+def forward_ae(args):
+    return ForwardAE(args.arch, args.angle, args.latents, args.beta, 'latent', args.capacity, args.capacity_leadin, nc=args.nc)
 
 
-def forward_vae(args):
-    return ForwardVAE(args.arch, args.rotation, args.angle, args.latents, args.beta, 'latent', args.capacity, args.capacity_leadin, nc=args.nc)
-
-
-def beta_forward(args):
-    return BetaForward(args)

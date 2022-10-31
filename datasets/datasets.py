@@ -63,7 +63,7 @@ def sprites(args):
 def forward_vae_ds(args):
     import os
     train_transform, test_transform = transforms[args.dataset](args)
-    output_targets = True if args.model in ['forward', 'rgrvae'] else False
+    output_targets = True if args.model in ['forward', 'rgrvae', 'forward_ae'] else False
     mean_channels = True
 
     images_path = os.path.join(args.data_path, 'inputs.npy')

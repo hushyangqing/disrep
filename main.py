@@ -5,7 +5,7 @@ from trainer import run
 parser = argparse.ArgumentParser('Disentanglement')
 # Basic Training Args
 parser.add_argument('--epochs', default=50, type=int)
-parser.add_argument('--model', default='forward', type=str, choices=['beta_shapes', 'beta_celeb', 'forward', 'rgrvae', 'dip_vae_i', 'dip_vae_ii', 'beta_forward', 'dforward'])
+parser.add_argument('--model', default='forward', type=str, choices=['beta_shapes', 'beta_celeb', 'forward', 'forward_ae', 'rgrvae', 'dip_vae_i', 'dip_vae_ii', 'beta_forward', 'dforward'])
 parser.add_argument('--dataset', default='forward', type=str, choices=['flatland', 'dsprites'])
 parser.add_argument('--data-path', default=None, type=str, help='Path to dataset root')
 parser.add_argument('--latents', default=4, type=int, help='Number of latents')
@@ -14,7 +14,9 @@ parser.add_argument('--split', default=0.1, type=float, help='Validation split f
 parser.add_argument('--shuffle', default=True, type=ast.literal_eval, help='Shuffle dataset')
 parser.add_argument('--lr-scheduler', default='none', choices=['exp', 'none'], type=str)
 parser.add_argument('--lr-scheduler-gamma', default=0.99, type=float, help='Exponential lr scheduler gamma')
-
+parser.add_argument('--arch', default='conv', type=str, choices=['linear', 'conv'])
+parser.add_argument('--angle', default=False, type=ast.literal_eval)
+parser.add_argument('--rotation', default='None', type=str, choices=['None', 'rotation_invariant', 'random'])
 # Model Loading
 parser.add_argument('--base-model', default='beta_forward', type=str, help='Base model for rgrvae, dforward')
 parser.add_argument('--base-model-path', default=None, help='Path to base model state which is to be loaded')
