@@ -16,7 +16,7 @@ parser.add_argument('--lr-scheduler', default='none', choices=['exp', 'none'], t
 parser.add_argument('--lr-scheduler-gamma', default=0.99, type=float, help='Exponential lr scheduler gamma')
 parser.add_argument('--arch', default='conv', type=str, choices=['linear', 'conv'])
 parser.add_argument('--angle', default=False, type=ast.literal_eval)
-parser.add_argument('--rotation', default='None', type=str, choices=['None', 'rotation_invariant', 'random'])
+parser.add_argument('--rotation', default='None', type=str, choices=['None', 'rotation_invariant', 'random', 'vae'])
 # Model Loading
 parser.add_argument('--base-model', default='beta_forward', type=str, help='Base model for rgrvae, dforward')
 parser.add_argument('--base-model-path', default=None, help='Path to base model state which is to be loaded')

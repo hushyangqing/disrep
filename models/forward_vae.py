@@ -363,6 +363,10 @@ class ForwardVAE(nn.Module):
                 r = torch.tensor(r, dtype=torch.float).cuda()
                 dist += self.MMD(z, torch.mm(z,r), 'rbf')
             kld = torch.tensor(dist/size).cuda()
+        elif self.rotation == 'vae':
+            l1 = torch.mean(F.mse_loss(mu, torch.zeros(mu.shape[1]).cuda()))
+            l2 = torch.mean(F.mse_loss(logvar.exp(), torch.ones(logvar.shape[1]).cuda()))
+            kld = l1 + l2
 
         vae_loss = (16 * loss_recon) + (self.anneal * kld * self.control_capacity(kld, self.global_step))
 

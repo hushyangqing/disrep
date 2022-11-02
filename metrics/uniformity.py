@@ -59,7 +59,9 @@ def measure_uniformity(vae, ntrue_actions, verbose, valloader):
             z_mean.append(z.mean())
             z_dist.append(distance(z))
     zmean = torch.tensor(z).mean()
-    base_data = getRandomSamplesOnNSphere(nactions, zmean, len(valloader))
+    import pdb
+    pdb.set_trace()
+    base_data = getRandomSamplesOnNSphere(ntrue_actions, zmean.cpu(), len(valloader))
     base_dis = distance(base_data)
     zdist = torch.tensor(z_dist).mean()
     print('z_exp_', z_dist)
