@@ -514,6 +514,31 @@ class ForwardVAE(nn.Module):
             dets.append(np.linalg.det(mat))
         return torch.tensor(dets), torch.tensor(dets).mean(), torch.tensor(angle_mean), torch.tensor(
             angle_std), torch.tensor(mangles)
+    
+    def cyclic_angle(self):
+        import math
+
+        A_1 = np.array(self.A_1.weight.cpu().detach())
+        A_2 = np.array(self.A_2.weight.cpu().detach())
+
+        A_3 = np.array(self.A_3.weight.cpu().detach())
+        A_4 = np.array(self.A_4.weight.cpu().detach())
+
+        rot_A_1 = np.array([A_1[0][:2], A_1[1][:2]])
+        rot_A_2 = np.array([A_2[0][:2], A_2[1][:2]])
+
+        rot_A_3 = np.array([A_3[2][2:], A_3[3][2:]])
+        rot_A_4 = np.array([A_4[2][2:], A_4[3][2:]])
+
+        rot_matrices = [rot_A_1, rot_A_2, rot_A_3, rot_A_4]
+        angle_mean = np.zeros(1)
+        angle_std = np.zeros(1)
+        mangles = []
+        for m in rot_matrices:
+            angles = [math.acos(m[0][0]), math.asin(m[0][1]), math.asin(m[1][0]), math.acos(m[1][1])]
+            # angles = [m[0][0], m[0][1], m[1][0], m[1][1]]
+            mangles.append(np.array([abs(a) for a in angles]).mean())
+        return mangles
 
     def generate_reconstructed_data(self, epoch):
         """ Should work """

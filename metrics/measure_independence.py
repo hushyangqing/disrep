@@ -175,6 +175,7 @@ class TrueIndep:
 
 
 def measure_indep(vae, latents, device, ntrue_actions, epochs, verbose, trainloader, valloader, trainds):
+    
     reps_init = [CoB(NdRep(2, repsize=(latents, latents)), repsize=(latents, latents)) for _ in range(ntrue_actions)]
 
     try:
@@ -317,21 +318,69 @@ def measure_indep(vae, latents, device, ntrue_actions, epochs, verbose, trainloa
                 best_x2[k] = x2_mse_per_action[k][best]
                 best_z2[k] = z_mse_per_action[k][best]
 
-        return {'true_independence': indep,
-                'cyclic_angles': angles,
-                'cyclic_orders': orders,
-                'symmetry_l1': symmetry_l1,
-                'symmetry_raw': {k: (angles[k].mean() - symmetry[k]).item() for k in symmetry},
-                'x2_mse': mean_x2_mse_per_action,
-                'z_mse': mean_z_mse_per_action,
-                'expected_dist': expected_distance_between_z,
+    return {'true_independence': indep,
+        'cyclic_angles': angles,
+        'cyclic_orders': orders,
+        'symmetry_l1': symmetry_l1,
+        'symmetry_raw': {k: (angles[k].mean() - symmetry[k]).item() for k in symmetry},
+        'x2_mse': mean_x2_mse_per_action,
+        'z_mse': mean_z_mse_per_action,
+        'expected_dist': expected_distance_between_z,
 
-                'best_x2_mse': best_x2,
-                'best_z_mse': best_z2,
-                'best_angle': best_angle,
-                'best_sym_l1': best_sym_l1,
+        'best_x2_mse': best_x2,
+        'best_z_mse': best_z2,
+        'best_angle': best_angle,
+        'best_sym_l1': best_sym_l1,
 
-                'mean_best_x2_mse': torch.tensor([v for v in best_x2.values()]).mean().item(),
-                'mean_best_z_mse': torch.tensor([v for v in best_z2.values()]).mean().item(),
-                'mean_best_sym_l1': torch.tensor([v for v in best_sym_l1.values()]).mean().item(),
-                }
+        'mean_best_x2_mse': torch.tensor([v for v in best_x2.values()]).mean().item(),
+        'mean_best_z_mse': torch.tensor([v for v in best_z2.values()]).mean().item(),
+        'mean_best_sym_l1': torch.tensor([v for v in best_sym_l1.values()]).mean().item(),
+        }
+    '''
+    # without training
+    with torch.no_grad():
+        pb = iter(valloader)
+
+        if verbose:
+            pb = tqdm.tqdm(pb)
+
+        expected_distance = []
+        z_mse_per_action = collections.defaultdict(list)
+        x2_mse_per_action = collections.defaultdict(list)
+        action_rep_per_action = collections.defaultdict(list)
+        indeps = []
+
+        if 'PairSprites' in str(trainds):
+            groups = [(2, 3), (4, 5), (6, 7), (8, 9)]
+            symmetry = {2: 2.09, 3: 2.09, 4: 0.63, 5: 0.63, 6: 0.79, 7: 0.79, 8: 0.79, 9: 0.79}  #(2,3): 2.09. (4,5): 0.63. (6,7),(8,9): 0.79
+        elif 'Forward' in str(trainds) or 'FlatLand' in str(trainds):
+            groups = [(0, 2), (1, 3)]
+            symmetry = {0: 0.9, 1: 0.9, 2: 0.9, 3: 0.9}
+
+        for (img, label), targets in pb:
+            img, targets = img.to(device), targets.to(device)
+            label = label.long().to(device)
+            a = sprites_label_to_action(label).long().to(device)
+            z = vae.unwrap(vae.encode(img))[0].data
+            zt = vae.unwrap(vae.encode(targets))[0].data
+            x2 = targets.data
+
+            tmp_action_rep_per_action = {}
+            for action in a.unique():
+                post_a = z - vae.next_rep(z.reshape(-1, latents), action.view(1, 1), cuda=True)
+                tmp_action_rep_per_action[action.item()] = post_a / post_a.norm(2, dim=1).unsqueeze(-1)
+
+            tmp = []
+            for g1 in groups:
+                for g2 in groups:
+                    if g1 == g2:
+                        continue
+                    tmp.append(torch.max(torch.stack([(tmp_action_rep_per_action[ig1] * tmp_action_rep_per_action[ig2]).sum(-1) for ig1 in g1 for ig2 in g2], 1), dim=1).values)
+            indeps.append(torch.cat(tmp, 0))
+
+        indep = 1 - torch.cat(indeps).abs().mean().item()
+        print(indep)
+        gc.collect()
+        
+        return {'true_independence': indep}
+        '''

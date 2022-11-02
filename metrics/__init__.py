@@ -7,6 +7,7 @@ from .unsupervised import UnsupervisedMetrics
 from .factor_leakage import FLMetric
 from .downstream import Downstream
 from .measure_independence import TrueIndep
+from .uniformity import Uniformity
 
 pretty_metric_names = {
     'dmetric/hig_acc': 'Hig Acc',
@@ -34,6 +35,7 @@ pretty_metric_names = {
     'dmetric/expected_dist': 'Expected Dist',
     'dmetric/rep_mean_x2': 'Rep Mean x2',
     'dmetric/rep_mean_z2': 'Rep Mean z2',
+    'demetric/uniformity': 'Uniformity',
 
 }
 

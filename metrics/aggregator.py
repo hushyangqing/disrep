@@ -45,7 +45,9 @@ class MetricAggregator:
 
         if self.final:
             ti = TrueIndep(self.ds, val_ds=self.val_ds, nactions=self.nactions, num_epochs=self.nindep_epochs, ntrue_actions=self.ntrue_actions, verbose=self.verbose)
+            uni = Uniformity(self.ds, val_ds=self.val_ds, nactions=self.nactions, ntrue_actions=self.ntrue_actions, verbose=self.verbose)
             metrics.append(ti)
+            metrics.append(uni)
         return metrics
 
     def __call__(self):
