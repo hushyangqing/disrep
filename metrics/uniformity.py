@@ -56,16 +56,17 @@ def measure_uniformity(vae, ntrue_actions, verbose, valloader):
             (img, label), target = data
             img = img.cuda()
             z = vae.unwrap(vae.encode(img))[0].detach()
-            z_mean.append(z.mean())
+            z_norm = torch.linalg.norm(z, dim=1)
+            z_mean.append(z_norm.mean())
             z_dist.append(distance(z))
-    zmean = torch.tensor(z).mean()
+    zmean = torch.tensor(z_mean).mean()
     base_data = getRandomSamplesOnNSphere(ntrue_actions, zmean.cpu(), len(valloader))
     base_dis = distance(base_data)
     zdist = torch.tensor(z_dist).mean()
-    print('z_exp_', z_dist)
+    print('z_exp_', zdist)
     print('base_exp_', base_dis)
-    print('uni_',z_dist/base_dis)
+    print('uni_',zdist/base_dis)
 
     return {'uniformity': z_dist/base_dis,
-        'z_exp': z_dist,
-        'base_exp': base_dis}
+        'z_exp': zdist,
+        'base_exp': basedis}
