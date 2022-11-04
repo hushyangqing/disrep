@@ -347,10 +347,11 @@ class ForwardVAE(nn.Module):
             kld = self.divergence_loss(logvar, mu)
         elif self.rotation == 'rotation_invariant':
             size=10
-            R = torch.randn([size,4]).cuda()
             dist = 0.0
             for i in range(size):
-                dist += self.MMD(z,z*R[i], 'rbf')
+                r = special_ortho_group.rvs(4)
+                r = torch.tensor(r, dtype=torch.float).cuda()
+                dist += self.MMD(z, torch.mm(z,r), 'rbf')
             kld = torch.tensor(dist/size).cuda()
         elif self.rotation == 'random':
             size=10
@@ -359,7 +360,6 @@ class ForwardVAE(nn.Module):
                 #r = ortho_group.rvs(4)
                 r = torch.rand(4, 4)
                 r = r / np.power(np.fabs(scipy.linalg.det(r)), 0.25)
-                #r = special_ortho_group.rvs(4)
                 r = torch.tensor(r, dtype=torch.float).cuda()
                 dist += self.MMD(z, torch.mm(z,r), 'rbf')
             kld = torch.tensor(dist/size).cuda()
@@ -368,7 +368,7 @@ class ForwardVAE(nn.Module):
             l2 = torch.mean(F.mse_loss(logvar.exp(), torch.ones(logvar.shape[1]).cuda()))
             kld = l1 + l2
 
-        vae_loss = (16 * loss_recon) + (self.anneal * kld * self.control_capacity(kld, self.global_step))
+        vae_loss = (1 * loss_recon) + (self.anneal * kld * self.control_capacity(kld, self.global_step))
 
         state.update({
             'pred': z_plus_1, 'z2': z_plus_1, 'x2_hat': self.decode(z_plus_1),
