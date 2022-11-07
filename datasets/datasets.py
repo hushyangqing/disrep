@@ -3,7 +3,7 @@ import torch
 from torch.utils.data import random_split, DataLoader
 from torchvision.transforms import Lambda, ToTensor
 
-from datasets.flatland_ds import ForwardVAEDS
+from datasets.flatland_ds import ForwardVAEDS, ForwardVAEDSIID
 from datasets.dsprites import PairSprites
 
 
@@ -66,10 +66,17 @@ def forward_vae_ds(args):
     output_targets = True if args.model in ['forward', 'rgrvae', 'forward_ae'] else False
     mean_channels = True
 
-    images_path = os.path.join(args.data_path, 'inputs.npy')
-    actions_path = os.path.join(args.data_path, 'actions.npy')
-    ds = ForwardVAEDS(images_path, actions_path, transforms=train_transform, output_targets=output_targets,
-                      mean_channels=mean_channels, num_steps=args.offset, noise_name=args.noise_name)
+    if args.iid == True:
+        images_path =  os.path.join(args.data_path, 'inputs_iid.npy')
+        targets_path = os.path.join(args.data_path, 'targets_iid.npy')
+        actions_path = os.path.join(args.data_path, 'actions_iid.npy')
+        ds = ForwardVAEDSIID(images_path, targets_path, actions_path, transforms=train_transform, output_targets=output_targets,
+                        mean_channels=mean_channels, num_steps=args.offset, noise_name=args.noise_name)
+    else:
+        images_path = os.path.join(args.data_path, 'inputs.npy')
+        actions_path = os.path.join(args.data_path, 'actions.npy')
+        ds = ForwardVAEDS(images_path, actions_path, transforms=train_transform, output_targets=output_targets,
+                        mean_channels=mean_channels, num_steps=args.offset, noise_name=args.noise_name)
     return ds
 
 
