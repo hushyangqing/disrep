@@ -26,7 +26,7 @@ def getRandomSamplesOnNSphere(N , R , numberOfSamples):
 def distance(data):
     data = torch.tensor(data)
     res = torch.cdist(data, data).reshape(-1)
-    exp = [torch.exp(-x) for x in res if x!=0]
+    exp = [torch.exp(x) for x in res if x!=0]
     exp = torch.tensor(exp)
     return exp.mean()
 
@@ -56,11 +56,18 @@ def measure_uniformity(vae, ntrue_actions, verbose, valloader):
             (img, label), target = data
             img = img.cuda()
             z = vae.unwrap(vae.encode(img))[0].detach()
+            z_norm = F.normalize(z)
+            '''
             z_norm = torch.linalg.norm(z, dim=1)
             z_mean.append(z_norm.mean())
             z_dist.append(distance(z))
+            '''
+            z_dist.append(distance(z_norm))
+    '''
     zmean = torch.tensor(z_mean).mean()
     base_data = getRandomSamplesOnNSphere(ntrue_actions, zmean.cpu(), len(valloader))
+    '''
+    base_data = getRandomSamplesOnNSphere(ntrue_actions, torch.tensor(1.0), len(valloader))
     base_dis = distance(base_data)
     zdist = torch.tensor(z_dist).mean()
     print('z_exp_', zdist)
