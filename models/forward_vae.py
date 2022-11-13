@@ -12,7 +12,7 @@ import scipy.linalg
 from scipy.stats import special_ortho_group, ortho_group
 
 from logger.imaging import *
-from models.utils import ParallelActions
+from models.utils import ParallelActions, sprites_label_to_action
 from models.vae import VAE
 
 
@@ -179,32 +179,57 @@ class ForwardVAE(nn.Module):
             self.A_3_angle = torch.nn.Parameter(torch.Tensor([3.14/4]))
             self.A_4_angle = torch.nn.Parameter(torch.Tensor([3.14/4]))       
         else:
+            self.A_0 = nn.Linear(self.Z_DIM, self.Z_DIM)
             self.A_1 = nn.Linear(self.Z_DIM, self.Z_DIM)
             self.A_2 = nn.Linear(self.Z_DIM, self.Z_DIM)
             self.A_3 = nn.Linear(self.Z_DIM, self.Z_DIM)
             self.A_4 = nn.Linear(self.Z_DIM, self.Z_DIM)
+            self.A_5 = nn.Linear(self.Z_DIM, self.Z_DIM)
+            self.A_6 = nn.Linear(self.Z_DIM, self.Z_DIM)
+            self.A_7 = nn.Linear(self.Z_DIM, self.Z_DIM)
+            self.A_8 = nn.Linear(self.Z_DIM, self.Z_DIM)
+
+            self.A_0.weight = torch.nn.Parameter(torch.Tensor([[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]]))
+            self.A_0.bias = torch.nn.Parameter(torch.Tensor([0, 0, 0, 0]))
 
             self.A_1.weight = torch.nn.Parameter(torch.Tensor([[1, 1, 0, 0], [1, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]]))
             self.A_2.weight = torch.nn.Parameter(torch.Tensor([[1, 1, 0, 0], [1, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]]))
             self.A_3.weight = torch.nn.Parameter(torch.Tensor([[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 1], [0, 0, 1, 1]]))
             self.A_4.weight = torch.nn.Parameter(torch.Tensor([[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 1], [0, 0, 1, 1]]))
+            self.A_5.weight = torch.nn.Parameter(torch.Tensor([[1, 1, 0, 0], [1, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]]))
+            self.A_6.weight = torch.nn.Parameter(torch.Tensor([[1, 1, 0, 0], [1, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]]))
+            self.A_7.weight = torch.nn.Parameter(torch.Tensor([[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 1], [0, 0, 1, 1]]))
+            self.A_8.weight = torch.nn.Parameter(torch.Tensor([[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 1], [0, 0, 1, 1]]))
             self.A_1.bias = torch.nn.Parameter(torch.Tensor([0, 0, 0, 0]))
             self.A_2.bias = torch.nn.Parameter(torch.Tensor([0, 0, 0, 0]))
             self.A_3.bias = torch.nn.Parameter(torch.Tensor([0, 0, 0, 0]))
             self.A_4.bias = torch.nn.Parameter(torch.Tensor([0, 0, 0, 0]))
+            self.A_5.bias = torch.nn.Parameter(torch.Tensor([0, 0, 0, 0]))
+            self.A_6.bias = torch.nn.Parameter(torch.Tensor([0, 0, 0, 0]))
+            self.A_7.bias = torch.nn.Parameter(torch.Tensor([0, 0, 0, 0]))
+            self.A_8.bias = torch.nn.Parameter(torch.Tensor([0, 0, 0, 0]))
 
             self.A_1.weight.register_hook(weight_hook(True))
             self.A_2.weight.register_hook(weight_hook(True))
             self.A_3.weight.register_hook(weight_hook(False))
             self.A_4.weight.register_hook(weight_hook(False))
+            self.A_5.weight.register_hook(weight_hook(True))
+            self.A_6.weight.register_hook(weight_hook(True))
+            self.A_7.weight.register_hook(weight_hook(False))
+            self.A_8.weight.register_hook(weight_hook(False))
 
             self.A_1.bias.register_hook(bias_hook())
             self.A_2.bias.register_hook(bias_hook())
             self.A_3.bias.register_hook(bias_hook())
             self.A_4.bias.register_hook(bias_hook())
+            self.A_5.bias.register_hook(bias_hook())
+            self.A_6.bias.register_hook(bias_hook())
+            self.A_7.bias.register_hook(bias_hook())
+            self.A_8.bias.register_hook(bias_hook())
+
 
             self.action_mapping = [
-                self.A_1, self.A_3, self.A_2, self.A_4
+                self.A_0, self.A_1, self.A_2, self.A_3, self.A_4, self.A_5, self.A_6, self.A_7, self.A_8
             ]
 
             self.groups = GroupWrapper(self.action_mapping)
@@ -336,7 +361,9 @@ class ForwardVAE(nn.Module):
     def main_step(self, batch, batch_nb, loss_fn):
 
         (frames, actions), target_batch = batch
-
+        actions = sprites_label_to_action(actions).long().cuda()
+        actions = actions.reshape(actions.shape[0], 1) - 1
+        
         (recon_x, mu_and_logvar, z_plus_1, z, targets), state = self.forward(frames, actions, target_batch)
 
         mu, logvar = self.unwrap(mu_and_logvar)
@@ -598,6 +625,31 @@ class ForwardVAE(nn.Module):
 
         return np.array(res)
 
+    def plot_z(self,trainloader):
+        import matplotlib.pyplot as plt
+        import random
+        z_all = []
+        for t, ((frames, actions), target_batch) in enumerate(trainloader):
+            frames = frames.cuda()
+            actions = actions.cuda()
+            target_batch = target_batch.cuda()
+            z_res = self.forward(frames, action=actions, target_batch=target_batch, encode=True, mean=False, decode=False)
+            z = z_res[0]
+            z = [z[i, ] for i in range(z.shape[0])]
+            z_all += z
+        z_final = random.sample(z_all, 1000)
+        z_1 = [k[0].item() for k in z_final]
+        z_2 = [k[1].item() for k in z_final]
+        z_3 = [k[2].item() for k in z_final]
+        z_4 = [k[3].item() for k in z_final]
+
+        ax = plt.axes(projection='3d')
+        ax.scatter3D(z_1, z_2, z_3, cmap='Blues', alpha=0.6)
+        plt.savefig('./vis/visual_random.png')
+
+        ax1 = plt.axes(projection='3d')
+        ax1.scatter3D(z_1, z_2, z_4, cmap='Blues', alpha=0.6)
+        plt.savefig('./vis/visual4_random.png')
 
 class BetaForward(VAE):
     def __init__(self, args):
