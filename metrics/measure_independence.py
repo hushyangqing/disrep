@@ -255,7 +255,7 @@ def measure_indep(vae, latents, device, ntrue_actions, epochs, verbose, trainloa
         indeps = []
 
         if 'PairSprites' in str(trainds):
-            groups = [(2, 3), (4, 5), (6, 7), (8, 9)]
+            groups = [(1, 2), (3, 4), (5, 6), (7, 8)]
             symmetry = {2: 2.09, 3: 2.09, 4: 0.63, 5: 0.63, 6: 0.79, 7: 0.79, 8: 0.79, 9: 0.79}  #(2,3): 2.09. (4,5): 0.63. (6,7),(8,9): 0.79
         elif 'Forward' in str(trainds) or 'FlatLand' in str(trainds):
             groups = [(0, 2), (1, 3)]
@@ -264,6 +264,7 @@ def measure_indep(vae, latents, device, ntrue_actions, epochs, verbose, trainloa
         for (img, label), targets in pb:
             img, targets = img.to(device), targets.to(device)
             a = sprites_label_to_action(label).long().to(device)
+            a = a - 1 
             z = vae.unwrap(vae.encode(img))[0].data
             zt = vae.unwrap(vae.encode(targets))[0].data
             x2 = targets.data
