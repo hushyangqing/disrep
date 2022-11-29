@@ -4,6 +4,7 @@ from models.forward_ae import forward_ae
 from models.group_vae import rl_group_vae, forward_grvae
 from models.factor_vae import factor_vae
 from models.dip_vae import dip_vae
+from models.forward_vae_trajectory import hforward
 
 models = {
     'beta_shapes': BetaShapes,
@@ -16,4 +17,5 @@ models = {
     'dip_vae_ii': dip_vae,
     'beta_forward': beta_forward,
     'dforward': forward_grvae(False),
+    'hforward': hforward
 }
