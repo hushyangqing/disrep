@@ -3,7 +3,7 @@ import torch
 from torch.utils.data import random_split, DataLoader
 from torchvision.transforms import Lambda, ToTensor
 
-from datasets.flatland_ds import ForwardVAEDS, ForwardVAEDSIID
+from datasets.flatland_ds import ForwardVAEDS, ForwardVAEDSIID, ForwardHVAEDS
 from datasets.dsprites import PairSprites
 
 
@@ -57,13 +57,13 @@ def sprites(args):
                      noise_name=args.noise_name, output_targets=output_targets)
     return ds
 
-
+'''
 @split
 @fix_data_path
 def forward_vae_ds(args):
     import os
     train_transform, test_transform = transforms[args.dataset](args)
-    output_targets = True if args.model in ['forward', 'rgrvae', 'forward_ae'] else False
+    output_targets = True if args.model in ['forward', 'rgrvae', 'forward_ae', 'hforward'] else False
     mean_channels = True
 
     if args.iid == True:
@@ -78,11 +78,27 @@ def forward_vae_ds(args):
         ds = ForwardVAEDS(images_path, actions_path, transforms=train_transform, output_targets=output_targets,
                         mean_channels=mean_channels, num_steps=args.offset, noise_name=args.noise_name)
     return ds
+'''
 
+# only for hforward
+@fix_data_path
+def forward_vae_ds(args):
+    import os
+    train_transform, test_transform = transforms[args.dataset](args)
+    output_targets = True if args.model in ['hforward'] else False
+    mean_channels = True
 
+    images_path = os.path.join(args.data_path, 'inputs.npy')
+    actions_path = os.path.join(args.data_path, 'actions.npy')
+    train_ds = ForwardHVAEDS(images_path, actions_path, transforms=train_transform, output_targets=output_targets,
+                    mean_channels=mean_channels, num_steps=args.offset, noise_name=args.noise_name, ratio = args.split, mode='train')
+    val_ds = ForwardHVAEDS(images_path, actions_path, transforms=train_transform, output_targets=output_targets,
+                    mean_channels=mean_channels, num_steps=args.offset, noise_name=args.noise_name, ratio = args.split, mode='val')
+    return train_ds, val_ds
+    
 _default_paths = {
     'flatland': '/mmfs1/home/qyangw/disentangled_rep/datasets',
-    'dsprites': '',
+    'dsprites': '/mmfs1/gscratch/simondu/qyang/disrep/datasets',
 }
 
 datasets = {
